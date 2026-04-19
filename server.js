@@ -46,6 +46,9 @@ const upload = multer({
   },
 })
 
+// GET /health
+app.get('/health', (_req, res) => res.json({ status: 'ok' }))
+
 // POST /jobs — upload images and queue a reconstruction
 app.post('/jobs', upload.array('images'), (req, res) => {
   if (!req.files?.length) {
