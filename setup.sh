@@ -3,12 +3,21 @@
 
 set -euo pipefail
 
+# apt-get update can fail due to third-party repos with bad/expired keys
+# (e.g. Caddy's repo). Update best-effort, then install what we need.
+apt_update() {
+  echo "==> Updating package lists..."
+  apt-get update -qq 2>&1 | grep -v "^W:\|^N:\|^E: The repository" || true
+  # If there are broken repos, apt-get install can still succeed for
+  # packages available in the main/universe repos — so we continue.
+}
+
 if command -v colmap &>/dev/null; then
   echo "==> COLMAP already installed ($(colmap -h 2>&1 | head -1))"
 else
   echo "==> Installing COLMAP..."
-  add-apt-repository -y universe
-  apt-get update -qq
+  add-apt-repository -y universe &>/dev/null
+  apt_update
   apt-get install -y colmap
   echo "==> COLMAP installed: $(colmap -h 2>&1 | head -1)"
 fi
@@ -21,11 +30,11 @@ else
   apt-get install -y nodejs
 fi
 
-echo "==> Versions"
-colmap -h 2>&1 | head -1
-node --version
-npm --version
-
 echo ""
-echo "All done. Clone the repo then:"
-echo "  cd colmap-api && npm install && npm start"
+echo "==> All done"
+colmap -h 2>&1 | head -1
+echo "Node $(node --version)"
+echo ""
+echo "Next steps:"
+echo "  git clone https://github.com/davidchatting-bot/colmap-api.git"
+echo "  cd colmap-api && npm install && node server.js"
