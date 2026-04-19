@@ -38,6 +38,8 @@ async function runPipeline(jobDir, onProgress) {
     '--image_path', imagePath,
     '--ImageReader.single_camera', '1',
     '--SiftExtraction.use_gpu', '0',
+    '--SiftExtraction.max_image_size', '1000',
+    '--SiftExtraction.max_num_features', '4096',
   ], 'Extracting features', onProgress)
 
   await run('colmap', [
