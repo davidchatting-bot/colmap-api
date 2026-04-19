@@ -66,7 +66,7 @@ async function runPipeline(jobDir, onProgress) {
 function run(cmd, args, stage, onProgress) {
   return new Promise((resolve, reject) => {
     onProgress({ stage, log: null })
-    const proc = spawn(cmd, args)
+    const proc = spawn(cmd, args, { env: { ...process.env, QT_QPA_PLATFORM: 'offscreen' } })
 
     proc.stdout.on('data', d => onProgress({ stage, log: d.toString().trim() }))
     proc.stderr.on('data', d => onProgress({ stage, log: d.toString().trim() }))
