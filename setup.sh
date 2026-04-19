@@ -7,8 +7,10 @@ if command -v colmap &>/dev/null; then
   echo "==> COLMAP already installed ($(colmap -h 2>&1 | head -1))"
 else
   echo "==> Installing COLMAP..."
+  add-apt-repository -y universe
   apt-get update -qq
   apt-get install -y colmap
+  echo "==> COLMAP installed: $(colmap -h 2>&1 | head -1)"
 fi
 
 if command -v node &>/dev/null; then
