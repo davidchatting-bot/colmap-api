@@ -1,0 +1,15 @@
+{
+  "name": "colmap-api",
+  "version": "1.0.0",
+  "description": "REST API wrapping COLMAP for camera pose estimation",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "multer": "^1.4.5-lts.1",
+    "ws": "^8.17.0"
+  }
+}
