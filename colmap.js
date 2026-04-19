@@ -63,7 +63,7 @@ async function runPipeline(jobDir, onProgress, opts = {}) {
     '--image_path', imagePath,
     '--output_path', sparsePath,
     '--Mapper.init_min_num_inliers', String(initMinNumInliers),
-    '--Mapper.min_num_inliers', String(minNumInliers),
+    '--Mapper.abs_pose_min_num_inliers', String(minNumInliers),
   ], 'Reconstructing scene', onProgress)
 
   const modelDir = path.join(sparsePath, '0')
