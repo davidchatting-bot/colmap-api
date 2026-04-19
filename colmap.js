@@ -37,11 +37,13 @@ async function runPipeline(jobDir, onProgress) {
     '--database_path', dbPath,
     '--image_path', imagePath,
     '--ImageReader.single_camera', '1',
+    '--SiftExtraction.use_gpu', '0',
   ], 'Extracting features', onProgress)
 
   await run('colmap', [
     'exhaustive_matcher',
     '--database_path', dbPath,
+    '--SiftMatching.use_gpu', '0',
   ], 'Matching features', onProgress)
 
   await run('colmap', [
