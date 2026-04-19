@@ -10,7 +10,7 @@ const { randomUUID } = require('crypto')
 const queue         = require('./queue')
 const { runPipeline } = require('./colmap')
 
-const PORT     = process.env.PORT || 3000
+const PORT     = process.env.PORT || 3001
 const JOBS_DIR = path.join(os.tmpdir(), 'colmap-jobs')
 const JOB_TTL  = 60 * 60 * 1000 // clean up job dirs after 1 hour
 
