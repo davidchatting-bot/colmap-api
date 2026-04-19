@@ -59,9 +59,18 @@ app.post('/jobs', upload.array('images'), (req, res) => {
   }
 
   const { jobId } = req
+
+  // Optional tuning params from form fields (all numeric)
+  const opts = {}
+  const fields = ['maxImageSize', 'maxNumFeatures', 'matchMaxRatio', 'initMinNumInliers', 'minNumInliers']
+  for (const f of fields) {
+    if (req.body[f] !== undefined) opts[f] = Number(req.body[f])
+  }
+
   queue.add(jobId, {
     jobDir:     path.join(JOBS_DIR, jobId),
     imageCount: req.files.length,
+    opts,
   })
 
   res.status(202).json({ jobId })
@@ -123,7 +132,7 @@ queue.on('run', async jobId => {
 
   try {
     const onProgress = update => queue.update(jobId, { progress: update })
-    const result = await runPipeline(job.jobDir, onProgress)
+    const result = await runPipeline(job.jobDir, onProgress, job.opts)
     queue.update(jobId, { status: 'done', result, finishedAt: Date.now() })
   } catch (err) {
     console.error(`Job ${jobId} failed:`, err.message)

@@ -25,9 +25,17 @@ const CAMERA_MODEL_NAMES = {
   4: 'OPENCV',
 }
 
-async function runPipeline(jobDir, onProgress) {
-  const dbPath    = path.join(jobDir, 'db.db')
-  const imagePath = path.join(jobDir, 'images')
+async function runPipeline(jobDir, onProgress, opts = {}) {
+  const {
+    maxImageSize       = 1000,
+    maxNumFeatures     = 4096,
+    matchMaxRatio      = 0.8,
+    initMinNumInliers  = 30,   // COLMAP default is 100 — lower for fewer images
+    minNumInliers      = 15,   // COLMAP default is 30
+  } = opts
+
+  const dbPath     = path.join(jobDir, 'db.db')
+  const imagePath  = path.join(jobDir, 'images')
   const sparsePath = path.join(jobDir, 'sparse')
 
   fs.mkdirSync(sparsePath, { recursive: true })
@@ -38,14 +46,15 @@ async function runPipeline(jobDir, onProgress) {
     '--image_path', imagePath,
     '--ImageReader.single_camera', '1',
     '--SiftExtraction.use_gpu', '0',
-    '--SiftExtraction.max_image_size', '1000',
-    '--SiftExtraction.max_num_features', '4096',
+    '--SiftExtraction.max_image_size', String(maxImageSize),
+    '--SiftExtraction.max_num_features', String(maxNumFeatures),
   ], 'Extracting features', onProgress)
 
   await run('colmap', [
     'exhaustive_matcher',
     '--database_path', dbPath,
     '--SiftMatching.use_gpu', '0',
+    '--SiftMatching.max_ratio', String(matchMaxRatio),
   ], 'Matching features', onProgress)
 
   await run('colmap', [
@@ -53,6 +62,8 @@ async function runPipeline(jobDir, onProgress) {
     '--database_path', dbPath,
     '--image_path', imagePath,
     '--output_path', sparsePath,
+    '--Mapper.init_min_num_inliers', String(initMinNumInliers),
+    '--Mapper.min_num_inliers', String(minNumInliers),
   ], 'Reconstructing scene', onProgress)
 
   const modelDir = path.join(sparsePath, '0')
