@@ -78,7 +78,8 @@ function run(cmd, args, stage, onProgress) {
     proc.on('error', err => reject(new Error(`Failed to start ${cmd}: ${err.message}`)))
     proc.on('close', code => {
       if (code === 0) resolve()
-      else reject(new Error(`${cmd} exited with code ${code}`))
+      else if (stage === 'Reconstructing scene') reject(new Error('Reconstruction failed — images may lack sufficient overlap or distinctive texture. Try images with 60–80% overlap from clearly different viewpoints.'))
+      else reject(new Error(`${cmd} failed during "${stage}" (exit code ${code})`))
     })
   })
 }
