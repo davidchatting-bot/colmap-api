@@ -176,7 +176,7 @@ function render3D(view3DH) {
 
   // Camera frustums
   const nearD = spread * 0.04;
-  const farD  = spread * 0.22;
+  const farD  = spread * 1.5;
 
   for (let i = 0; i < poses.length; i++) {
     const cam = cameras[poses[i].cameraId];
