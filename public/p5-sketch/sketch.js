@@ -151,8 +151,7 @@ function buildGraphicsBuffer() {
 
 function render3D(view3DH) {
   pg3d.background(24);
-  pg3d.ambientLight(80);
-  pg3d.directionalLight(255, 255, 255, 0.3, 0.5, -1);
+  pg3d.ambientLight(255);  // full ambient so textures render at true colour
 
   pg3d.perspective(PI / 3, width / view3DH, 0.1, 10000);
   pg3d.camera(0, 0, 400, 0, 0, 0, 0, 1, 0);
@@ -202,7 +201,7 @@ function drawFrustum(apex, corners, img) {
   // Far plane — image at 40% alpha, or plain tint if no image
   pg3d.noStroke();
   if (img) {
-    pg3d.tint(255, 255, 255, 102);  // 40% alpha
+    pg3d.fill(255, 255, 255, 102);  // 40% alpha multiplied with texture
     pg3d.textureMode(NORMAL);
     pg3d.texture(img);
     pg3d.beginShape();
@@ -211,7 +210,6 @@ function drawFrustum(apex, corners, img) {
     pg3d.vertex(f[2].x, f[2].y, f[2].z, 1, 1);
     pg3d.vertex(f[3].x, f[3].y, f[3].z, 0, 1);
     pg3d.endShape(CLOSE);
-    pg3d.noTint();
   } else {
     pg3d.fill(180, 180, 255, 40);
     pg3d.beginShape();
