@@ -152,7 +152,7 @@ Image elements can be same-origin `<img>` tags or elements with `src` set to a d
 - Progress streams live via WebSocket
 - Camera poses displayed on canvas when done
 
-Copy the three files (`index.html`, `sketch.js`, `style.css`) into the [p5.js editor](https://editor.p5js.org) or host them statically. Update `API_BASE` in `sketch.js` to point to your server.
+Copy the three files (`index.html`, `sketch.js`, `style.css`) into the [p5.js editor](https://editor.p5js.org) or access the hosted version at `/colmap/p5-sketch/index.html`. Update `API_BASE` in `sketch.js` to point to your server.
 
 ## Test page
 
