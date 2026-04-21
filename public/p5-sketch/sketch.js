@@ -18,7 +18,7 @@ import(API_BASE + '/client.js').then(mod => {
 });
 
 function setup() {
-  createCanvas(windowWidth, windowHeight);
+  let canvas = createCanvas(windowWidth, windowHeight);
   textFont('monospace');
   canvas.drop(onFileDropped);
 }
