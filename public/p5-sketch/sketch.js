@@ -97,11 +97,11 @@ async function runColmap() {
     for (const d of droppedImages) {
       const key    = d.name.split('/').pop().toLowerCase();
       const canvas = document.createElement('canvas');
-      canvas.width  = d.p5img.width;
-      canvas.height = d.p5img.height;
+      canvas.width  = d.el.elt.naturalWidth  || d.p5img.width;
+      canvas.height = d.el.elt.naturalHeight || d.p5img.height;
       const ctx = canvas.getContext('2d');
       ctx.globalAlpha = 0.4;
-      ctx.drawImage(d.p5img.elt, 0, 0);
+      ctx.drawImage(d.el.elt, 0, 0);  // d.el is the hidden <img> we created on drop
       imageByName[key] = canvas;
     }
 
