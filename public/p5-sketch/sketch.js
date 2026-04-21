@@ -91,18 +91,15 @@ async function runColmap() {
     cameras      = result.cameras;
     camPositions = poses.map(poseToWorldPos);
 
-    // Bake alpha into a plain HTML canvas — p5.js WEBGL accepts these as textures
-    // whereas p5.Graphics objects don't work reliably across createGraphics contexts
     imageByName = {};
     for (const d of droppedImages) {
-      const key    = d.name.split('/').pop().toLowerCase();
-      const canvas = document.createElement('canvas');
-      canvas.width  = d.el.elt.naturalWidth  || d.p5img.width;
-      canvas.height = d.el.elt.naturalHeight || d.p5img.height;
-      const ctx = canvas.getContext('2d');
-      ctx.globalAlpha = 0.4;
-      ctx.drawImage(d.el.elt, 0, 0);  // d.el is the hidden <img> we created on drop
-      imageByName[key] = canvas;
+      const key = d.name.split('/').pop().toLowerCase();
+      // p5.Graphics is required — texture() doesn't accept raw HTMLCanvasElement
+      const pg = createGraphics(d.p5img.width, d.p5img.height);
+      pg.clear();
+      pg.tint(255, 102);  // bake 40% alpha into pixel data
+      pg.image(d.p5img, 0, 0);
+      imageByName[key] = pg;
     }
 
     status = `Done — ${poses.length} pose(s) estimated`;
@@ -210,7 +207,7 @@ function drawFrustum(apex, corners, img) {
   // Far plane — image at 40% alpha, or plain tint if no image
   pg3d.noStroke();
   if (img) {
-    pg3d.noFill();
+    pg3d.fill(255);  // white fill so texture colour shows through unmodified
     pg3d.noStroke();
     pg3d.textureMode(NORMAL);
     pg3d.texture(img);
