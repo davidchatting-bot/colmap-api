@@ -5,7 +5,8 @@ p5.disableFriendlyErrors = true;
 
 const API_BASE = 'https://labs.davidchatting.com/colmap';
 
-let droppedImages  = [];
+let droppedImages  = [];  // { p5img, el, name }
+let imageByName    = {};  // normalised filename → p5img
 let status         = 'DROP 2+ IMAGES THEN PRESS SPACE';
 let poses          = null;
 let cameras        = null;  // intrinsics keyed by cameraId
@@ -65,8 +66,8 @@ function onFileDropped(file) {
   const p5img = loadImage(file.data);
   const el    = createImg(file.data, '');
   el.style('visibility', 'hidden');
-  droppedImages.push({ p5img, el });
-  poses = null; cameras = null; camPositions = [];
+  droppedImages.push({ p5img, el, name: file.name });
+  poses = null; cameras = null; camPositions = []; imageByName = {};
   status = `${droppedImages.length} image(s) — press SPACE to run COLMAP`;
 }
 
@@ -89,6 +90,12 @@ async function runColmap() {
     poses        = result.poses;
     cameras      = result.cameras;
     camPositions = poses.map(poseToWorldPos);
+
+    imageByName = {};
+    for (const d of droppedImages) {
+      imageByName[d.name.split('/').pop().toLowerCase()] = d.p5img;
+    }
+
     status = `Done — ${poses.length} pose(s) estimated`;
   } catch (err) {
     status = 'Error: ' + err.message;
@@ -182,36 +189,42 @@ function render3D(view3DH) {
     const cam = cameras[poses[i].cameraId];
     if (!cam) continue;
     const corners = frustumCorners(poses[i], cam, nearD, farD);
-    drawFrustum(camPositions[i], corners);
+    const img = imageByName[poses[i].name.split('/').pop().toLowerCase()] || null;
+    drawFrustum(camPositions[i], corners, img);
   }
 }
 
-// Draw a wireframe camera frustum
-// corners: { near: [tl,tr,br,bl], far: [tl,tr,br,bl] } in world space
-function drawFrustum(apex, corners) {
+// Draw a wireframe camera frustum with optional semi-transparent image on far plane
+function drawFrustum(apex, corners, img) {
   const n = corners.near;
   const f = corners.far;
 
-  // Semi-transparent near plane face
+  // Far plane — image at 40% alpha, or plain tint if no image
   pg3d.noStroke();
-  pg3d.fill(180, 180, 255, 40);
-  pg3d.beginShape();
-  pg3d.vertex(n[0].x, n[0].y, n[0].z);
-  pg3d.vertex(n[1].x, n[1].y, n[1].z);
-  pg3d.vertex(n[2].x, n[2].y, n[2].z);
-  pg3d.vertex(n[3].x, n[3].y, n[3].z);
-  pg3d.endShape(CLOSE);
+  if (img) {
+    pg3d.tint(255, 255, 255, 102);  // 40% alpha
+    pg3d.textureMode(NORMAL);
+    pg3d.texture(img);
+    pg3d.beginShape();
+    pg3d.vertex(f[0].x, f[0].y, f[0].z, 0, 0);
+    pg3d.vertex(f[1].x, f[1].y, f[1].z, 1, 0);
+    pg3d.vertex(f[2].x, f[2].y, f[2].z, 1, 1);
+    pg3d.vertex(f[3].x, f[3].y, f[3].z, 0, 1);
+    pg3d.endShape(CLOSE);
+    pg3d.noTint();
+  } else {
+    pg3d.fill(180, 180, 255, 40);
+    pg3d.beginShape();
+    for (const v of f) pg3d.vertex(v.x, v.y, v.z);
+    pg3d.endShape(CLOSE);
+  }
 
   // Wireframe
   pg3d.noFill();
   pg3d.stroke(180, 200, 255);
   pg3d.strokeWeight(0.5);
-
-  // Near rect
   drawRect(n);
-  // Far rect
   drawRect(f);
-  // Apex to far corners (the frustum edges)
   for (let i = 0; i < 4; i++) {
     pg3d.line(apex.x, apex.y, apex.z, f[i].x, f[i].y, f[i].z);
   }
