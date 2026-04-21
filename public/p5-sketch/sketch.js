@@ -91,16 +91,18 @@ async function runColmap() {
     cameras      = result.cameras;
     camPositions = poses.map(poseToWorldPos);
 
-    // Pre-render each image to a 2D buffer with alpha baked in
-    // so it works reliably as a WEBGL texture
+    // Bake alpha into a plain HTML canvas — p5.js WEBGL accepts these as textures
+    // whereas p5.Graphics objects don't work reliably across createGraphics contexts
     imageByName = {};
     for (const d of droppedImages) {
-      const key = d.name.split('/').pop().toLowerCase();
-      const pg  = createGraphics(d.p5img.width, d.p5img.height);
-      pg.clear();
-      pg.tint(255, 102);  // 40% alpha
-      pg.image(d.p5img, 0, 0);
-      imageByName[key] = pg;
+      const key    = d.name.split('/').pop().toLowerCase();
+      const canvas = document.createElement('canvas');
+      canvas.width  = d.p5img.width;
+      canvas.height = d.p5img.height;
+      const ctx = canvas.getContext('2d');
+      ctx.globalAlpha = 0.4;
+      ctx.drawImage(d.p5img.elt, 0, 0);
+      imageByName[key] = canvas;
     }
 
     status = `Done — ${poses.length} pose(s) estimated`;
