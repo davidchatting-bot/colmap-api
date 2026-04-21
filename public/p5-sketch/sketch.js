@@ -221,19 +221,27 @@ function render3D(view3DH) {
   }
 }
 
-function drawCamera(pos, fwd, size, index) {
+function drawCamera(pos, fwd, size) {
   pg3d.push();
   pg3d.translate(pos.x, pos.y, pos.z);
 
-  // Body sphere
-  pg3d.noStroke();
-  pg3d.fill(220, 90, 90);
-  pg3d.sphere(size * 0.4);
+  // Rotate so cone's default +Y axis aligns with the forward direction
+  // axis = [0,1,0] × fwd = [fwd.z, 0, -fwd.x]
+  const axisLen = Math.sqrt(fwd.z * fwd.z + fwd.x * fwd.x);
+  const angle   = Math.acos(Math.max(-1, Math.min(1, fwd.y)));
 
-  // Look direction line
-  pg3d.stroke(255, 200, 50);
-  pg3d.strokeWeight(size * 0.15);
-  pg3d.line(0, 0, 0, fwd.x * size, fwd.y * size, fwd.z * size);
+  if (axisLen > 0.001) {
+    pg3d.rotate(angle, [fwd.z / axisLen, 0, -fwd.x / axisLen]);
+  } else if (fwd.y < 0) {
+    pg3d.rotateX(Math.PI); // pointing straight back — flip 180°
+  }
+
+  // Shift along the (now-rotated) Y axis so cone tip sits at camera position
+  pg3d.translate(0, size * 0.5, 0);
+
+  pg3d.noStroke();
+  pg3d.fill(220, 130, 50);
+  pg3d.cone(size * 0.45, size);
 
   pg3d.pop();
 }
