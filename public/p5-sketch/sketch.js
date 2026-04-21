@@ -6,7 +6,7 @@ p5.disableFriendlyErrors = true;
 const API_BASE = 'https://labs.davidchatting.com/colmap';
 
 let droppedImages  = [];  // { p5img, el, name }
-let imageByName    = {};  // normalised filename → p5img
+let imageByName    = {};  // normalised filename → p5.Graphics with alpha baked in
 let status         = 'DROP 2+ IMAGES THEN PRESS SPACE';
 let poses          = null;
 let cameras        = null;  // intrinsics keyed by cameraId
@@ -91,9 +91,16 @@ async function runColmap() {
     cameras      = result.cameras;
     camPositions = poses.map(poseToWorldPos);
 
+    // Pre-render each image to a 2D buffer with alpha baked in
+    // so it works reliably as a WEBGL texture
     imageByName = {};
     for (const d of droppedImages) {
-      imageByName[d.name.split('/').pop().toLowerCase()] = d.p5img;
+      const key = d.name.split('/').pop().toLowerCase();
+      const pg  = createGraphics(d.p5img.width, d.p5img.height);
+      pg.clear();
+      pg.tint(255, 102);  // 40% alpha
+      pg.image(d.p5img, 0, 0);
+      imageByName[key] = pg;
     }
 
     status = `Done — ${poses.length} pose(s) estimated`;
@@ -201,7 +208,8 @@ function drawFrustum(apex, corners, img) {
   // Far plane — image at 40% alpha, or plain tint if no image
   pg3d.noStroke();
   if (img) {
-    pg3d.fill(255, 255, 255, 102);  // 40% alpha multiplied with texture
+    pg3d.noFill();
+    pg3d.noStroke();
     pg3d.textureMode(NORMAL);
     pg3d.texture(img);
     pg3d.beginShape();
