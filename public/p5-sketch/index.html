@@ -5,9 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>colmap pose estimator</title>
     <link rel="stylesheet" href="style.css" />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js"></script>
+    <script src="p5.min.js"></script>
   </head>
   <body>
+    <div id="overlay">
+      <div id="thumbs"><span id="drop-hint">DROP IMAGES HERE</span></div>
+      <div id="statusbar">
+        <span id="status">DROP 2+ IMAGES THEN PRESS SPACE</span>
+        <span id="orbit-hint" style="display:none">drag to orbit</span>
+      </div>
+    </div>
     <script src="sketch.js"></script>
   </body>
 </html>

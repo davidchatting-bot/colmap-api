@@ -44,7 +44,7 @@ async function runPipeline(jobDir, onProgress, opts = {}) {
     'feature_extractor',
     '--database_path', dbPath,
     '--image_path', imagePath,
-    '--ImageReader.single_camera', '1',
+    '--ImageReader.single_camera_per_image', '1',
     '--SiftExtraction.use_gpu', '0',
     '--SiftExtraction.max_image_size', String(maxImageSize),
     '--SiftExtraction.max_num_features', String(maxNumFeatures),

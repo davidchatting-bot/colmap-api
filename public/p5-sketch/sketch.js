@@ -3,72 +3,80 @@
 
 p5.disableFriendlyErrors = true;
 
-const API_BASE = 'https://labs.davidchatting.com/colmap';
+const API_BASE = '';
 
-let droppedImages  = [];  // { p5img, el, name }
-let imageByName    = {};  // normalised filename → p5.Graphics with alpha baked in
-let status         = 'DROP 2+ IMAGES THEN PRESS SPACE';
-let poses          = null;
-let cameras        = null;  // intrinsics keyed by cameraId
-let camPositions   = [];
-let submitPoseJob  = null;
+let droppedImages = [];
+let imageByName   = {};
+let poses         = null;
+let cameras       = null;
+let camPositions  = [];
+let submitPoseJob = null;
 
-// 3D view
-let pg3d;
-let orbitX   = -0.4;
-let orbitY   = 0.3;
-let dragging = false;
-let lastMX, lastMY;
+let orbitX = -0.4, orbitY = 0.3;
+let dragging = false, lastMX, lastMY;
 
-const THUMB_RATIO = 0.32;
-const STATUS_H    = 32;
+// HTML overlay elements
+let elThumbs, elDropHint, elStatus, elOrbitHint;
 
 import(API_BASE + '/client.js')
   .then(mod => { submitPoseJob = mod.submitPoseJob })
-  .catch(err => { status = 'API client failed to load: ' + err.message });
+  .catch(err => { setStatus('API client failed to load: ' + err.message) });
 
 // ── p5 lifecycle ──────────────────────────────────────────────────────────────
 
 function setup() {
-  let canvas = createCanvas(windowWidth, windowHeight);
-  textFont('monospace');
+  let canvas = createCanvas(windowWidth, windowHeight, WEBGL);
   canvas.drop(onFileDropped);
-  buildGraphicsBuffer();
+
+  elThumbs    = document.getElementById('thumbs');
+  elDropHint  = document.getElementById('drop-hint');
+  elStatus    = document.getElementById('status');
+  elOrbitHint = document.getElementById('orbit-hint');
 }
 
 function draw() {
   background(18);
 
-  const thumbH  = height * THUMB_RATIO;
-  const view3DY = thumbH + STATUS_H;
-  const view3DH = height - view3DY;
-
-  drawThumbnails(thumbH);
-  drawStatus(thumbH);
-
   if (camPositions.length > 0) {
-    render3D(view3DH);
-    image(pg3d, 0, view3DY);
-    fill(50); noStroke(); textSize(10); textAlign(RIGHT, BOTTOM);
-    text('drag to orbit', width - 10, height - 6);
+    push();
+    ambientLight(255);
+    rotateX(orbitX);
+    rotateY(orbitY);
+    drawScene();
+    pop();
   }
 }
 
 function windowResized() {
   resizeCanvas(windowWidth, windowHeight);
-  buildGraphicsBuffer();
+}
+
+function setStatus(msg) {
+  if (elStatus) elStatus.textContent = msg;
 }
 
 // ── File drop ─────────────────────────────────────────────────────────────────
 
 function onFileDropped(file) {
   if (!file.type.startsWith('image')) return;
-  const p5img = loadImage(file.data);
-  const el    = createImg(file.data, '');
+
+  const img = document.createElement('img');
+  img.src = file.data;
+  img.alt = file.name;
+
+  const el = createImg(file.data, '');
   el.style('visibility', 'hidden');
-  droppedImages.push({ p5img, el, name: file.name });
+  el.style('position', 'absolute');
+
+  droppedImages.push({ img, el, name: file.name });
   poses = null; cameras = null; camPositions = []; imageByName = {};
-  status = `${droppedImages.length} image(s) — press SPACE to run COLMAP`;
+
+  // Update thumbnail strip
+  elDropHint.style.display = 'none';
+  elThumbs.appendChild(img);
+
+  setStatus(`${droppedImages.length} image(s) — press SPACE to run COLMAP`);
+  if (elOrbitHint) elOrbitHint.style.display = 'none';
 }
 
 function keyPressed() {
@@ -78,14 +86,15 @@ function keyPressed() {
 // ── COLMAP job ────────────────────────────────────────────────────────────────
 
 async function runColmap() {
-  if (!submitPoseJob) { status = 'API client not loaded yet'; return; }
-  status = 'Starting…'; poses = null; cameras = null; camPositions = [];
+  if (!submitPoseJob) { setStatus('API client not loaded yet'); return; }
+  setStatus('Starting…');
+  poses = null; cameras = null; camPositions = []; imageByName = {};
 
   try {
     const domImgs = droppedImages.map(d => d.el.elt);
     const result  = await submitPoseJob(domImgs, {
       apiBase:    API_BASE,
-      onProgress: ({ stage }) => { status = stage || status },
+      onProgress: ({ stage }) => { if (stage) setStatus(stage) },
     });
     poses        = result.poses;
     cameras      = result.cameras;
@@ -93,27 +102,20 @@ async function runColmap() {
 
     imageByName = {};
     for (const d of droppedImages) {
-      const key = d.name.split('/').pop().toLowerCase();
-      // p5.Graphics is required — texture() doesn't accept raw HTMLCanvasElement
-      const pg = createGraphics(d.p5img.width, d.p5img.height);
-      pg.clear();
-      pg.tint(255, 102);  // bake 40% alpha into pixel data
-      pg.image(d.p5img, 0, 0);
-      imageByName[key] = pg;
+      imageByName[d.name.split('/').pop().toLowerCase()] = loadImage(d.img.src);
     }
 
-    status = `Done — ${poses.length} pose(s) estimated`;
+    setStatus(`Done — ${poses.length} pose(s) estimated`);
+    if (elOrbitHint) elOrbitHint.style.display = 'inline';
   } catch (err) {
-    status = 'Error: ' + err.message;
+    setStatus('Error: ' + err.message);
   }
 }
 
 // ── Mouse orbit ───────────────────────────────────────────────────────────────
 
 function mousePressed() {
-  if (mouseY > height * THUMB_RATIO + STATUS_H && camPositions.length > 0) {
-    dragging = true; lastMX = mouseX; lastMY = mouseY;
-  }
+  dragging = true; lastMX = mouseX; lastMY = mouseY;
 }
 function mouseDragged() {
   if (!dragging) return;
@@ -123,166 +125,108 @@ function mouseDragged() {
 }
 function mouseReleased() { dragging = false; }
 
-// ── Drawing ───────────────────────────────────────────────────────────────────
+// ── 3D scene ──────────────────────────────────────────────────────────────────
 
-function drawThumbnails(thumbH) {
-  if (droppedImages.length === 0) {
-    fill(70); noStroke(); textSize(14); textAlign(CENTER, CENTER);
-    text('DROP IMAGES HERE', width / 2, thumbH / 2);
-    return;
-  }
-  const thumbW = width / droppedImages.length;
-  for (let i = 0; i < droppedImages.length; i++) {
-    const img = droppedImages[i].p5img;
-    if (!img || img.width === 0) continue;
-    const s = min(thumbW / img.width, thumbH / img.height);
-    const x = i * thumbW + (thumbW - img.width * s) / 2;
-    const y = (thumbH - img.height * s) / 2;
-    push(); translate(x, y); image(img, 0, 0, img.width * s, img.height * s); pop();
-  }
-}
-
-function drawStatus(thumbH) {
-  fill(130); noStroke(); textSize(12); textAlign(LEFT, CENTER);
-  text(status, 16, thumbH + STATUS_H / 2);
-}
-
-function buildGraphicsBuffer() {
-  if (pg3d) pg3d.remove();
-  const view3DH = max(100, height - height * THUMB_RATIO - STATUS_H);
-  pg3d = createGraphics(width, view3DH, WEBGL);
-}
-
-// ── 3D rendering ──────────────────────────────────────────────────────────────
-
-function render3D(view3DH) {
-  pg3d.background(24);
-  pg3d.ambientLight(255);  // full ambient so textures render at true colour
-
-  pg3d.perspective(PI / 3, width / view3DH, 0.1, 10000);
-  pg3d.camera(0, 0, 400, 0, 0, 0, 0, 1, 0);
-
-  pg3d.rotateX(orbitX);
-  pg3d.rotateY(orbitY);
-
-  // Centre and scale the scene
-  const cx = average(camPositions.map(p => p.x));
-  const cy = average(camPositions.map(p => p.y));
-  const cz = average(camPositions.map(p => p.z));
+function drawScene() {
+  const cx     = average(camPositions.map(p => p.x));
+  const cy     = average(camPositions.map(p => p.y));
+  const cz     = average(camPositions.map(p => p.z));
   const spread = maxSpread(camPositions, cx, cy, cz) || 1;
-  const s = 120 / spread;
+  const s      = 120 / spread;
 
-  pg3d.translate(-cx * s, -cy * s, -cz * s);
-  pg3d.scale(s);
+  translate(-cx * s, -cy * s, -cz * s);
+  scale(s);
 
   drawAxes(12 / s);
 
-  // Connecting lines between camera centres
-  pg3d.stroke(50, 70, 180);
-  pg3d.strokeWeight(0.8 / s);
-  pg3d.noFill();
+  stroke(50, 70, 180);
+  strokeWeight(0.8 / s);
+  noFill();
   for (let i = 0; i < camPositions.length - 1; i++) {
     const a = camPositions[i], b = camPositions[i + 1];
-    pg3d.line(a.x, a.y, a.z, b.x, b.y, b.z);
+    line(a.x, a.y, a.z, b.x, b.y, b.z);
   }
 
-  // Camera frustums
   const nearD = spread * 0.04;
   const farD  = spread * 1.5;
 
   for (let i = 0; i < poses.length; i++) {
-    const cam = cameras[poses[i].cameraId];
+    const pose = poses[i];
+    const cam  = cameras[pose.cameraId];
     if (!cam) continue;
-    const corners = frustumCorners(poses[i], cam, nearD, farD);
-    const img = imageByName[poses[i].name.split('/').pop().toLowerCase()] || null;
-    drawFrustum(camPositions[i], corners, img);
+    const corners = frustumCorners(pose, cam, nearD, farD);
+    const img = imageByName[pose.name.split('/').pop().toLowerCase()] || null;
+    drawFrustum(camPositions[i], corners, img, s);
   }
 }
 
-// Draw a wireframe camera frustum with optional semi-transparent image on far plane
-function drawFrustum(apex, corners, img) {
+function drawFrustum(apex, corners, img, s) {
   const n = corners.near;
   const f = corners.far;
 
-  // Far plane — image at 40% alpha, or plain tint if no image
-  pg3d.noStroke();
   if (img) {
-    pg3d.fill(255);  // white fill so texture colour shows through unmodified
-    pg3d.noStroke();
-    pg3d.textureMode(NORMAL);
-    pg3d.texture(img);
-    pg3d.beginShape();
-    pg3d.vertex(f[0].x, f[0].y, f[0].z, 0, 0);
-    pg3d.vertex(f[1].x, f[1].y, f[1].z, 1, 0);
-    pg3d.vertex(f[2].x, f[2].y, f[2].z, 1, 1);
-    pg3d.vertex(f[3].x, f[3].y, f[3].z, 0, 1);
-    pg3d.endShape(CLOSE);
-  } else {
-    pg3d.fill(180, 180, 255, 40);
-    pg3d.beginShape();
-    for (const v of f) pg3d.vertex(v.x, v.y, v.z);
-    pg3d.endShape(CLOSE);
+    fill(255, 255, 255, 102);
+    noStroke();
+    textureMode(NORMAL);
+    texture(img);
+    beginShape();
+    vertex(f[0].x, f[0].y, f[0].z, 0, 0);
+    vertex(f[1].x, f[1].y, f[1].z, 1, 0);
+    vertex(f[2].x, f[2].y, f[2].z, 1, 1);
+    vertex(f[3].x, f[3].y, f[3].z, 0, 1);
+    endShape(CLOSE);
   }
 
-  // Wireframe
-  pg3d.noFill();
-  pg3d.stroke(180, 200, 255);
-  pg3d.strokeWeight(0.5);
+  noFill();
+  stroke(180, 200, 255);
+  strokeWeight(0.5 / s);
   drawRect(n);
   drawRect(f);
   for (let i = 0; i < 4; i++) {
-    pg3d.line(apex.x, apex.y, apex.z, f[i].x, f[i].y, f[i].z);
+    line(apex.x, apex.y, apex.z, f[i].x, f[i].y, f[i].z);
   }
 }
 
 function drawRect(pts) {
   for (let i = 0; i < 4; i++) {
     const a = pts[i], b = pts[(i + 1) % 4];
-    pg3d.line(a.x, a.y, a.z, b.x, b.y, b.z);
+    line(a.x, a.y, a.z, b.x, b.y, b.z);
   }
 }
 
 function drawAxes(size) {
-  pg3d.strokeWeight(1.5);
-  pg3d.stroke(220, 60, 60);  pg3d.line(0,0,0, size,0,0);
-  pg3d.stroke(60, 220, 60);  pg3d.line(0,0,0, 0,size,0);
-  pg3d.stroke(60, 60, 220);  pg3d.line(0,0,0, 0,0,size);
+  strokeWeight(1.5);
+  stroke(220, 60, 60);  line(0,0,0, size,0,0);
+  stroke(60, 220, 60);  line(0,0,0, 0,size,0);
+  stroke(60, 60, 220);  line(0,0,0, 0,0,size);
 }
 
 // ── Frustum math ──────────────────────────────────────────────────────────────
 
-// Returns { near: [tl,tr,br,bl], far: [tl,tr,br,bl] } in world space
 function frustumCorners(pose, cam, nearD, farD) {
   const R   = quatToRotMatrix(pose.rotation);
   const pos = poseToWorldPos(pose);
 
-  // Extract focal length and principal point from camera params
-  // SIMPLE_PINHOLE: [f, cx, cy]   PINHOLE: [fx, fy, cx, cy]
   let fx, fy, cx, cy;
   if (cam.model === 'SIMPLE_PINHOLE') {
     [fx, cx, cy] = cam.params; fy = fx;
   } else {
     [fx, fy, cx, cy] = cam.params;
   }
-
   const W = cam.width, H = cam.height;
 
-  // Image corners in camera space at given depth d:
-  // direction = ((pixel - principal_point) / focal) * d
   function corners(d) {
     return [
-      camToWorld([(0 - cx) / fx * d, (0 - cy) / fy * d, d], R, pos), // TL
-      camToWorld([(W - cx) / fx * d, (0 - cy) / fy * d, d], R, pos), // TR
-      camToWorld([(W - cx) / fx * d, (H - cy) / fy * d, d], R, pos), // BR
-      camToWorld([(0 - cx) / fx * d, (H - cy) / fy * d, d], R, pos), // BL
+      camToWorld([(0 - cx) / fx * d, (0 - cy) / fy * d, d], R, pos),
+      camToWorld([(W - cx) / fx * d, (0 - cy) / fy * d, d], R, pos),
+      camToWorld([(W - cx) / fx * d, (H - cy) / fy * d, d], R, pos),
+      camToWorld([(0 - cx) / fx * d, (H - cy) / fy * d, d], R, pos),
     ];
   }
 
   return { near: corners(nearD), far: corners(farD) };
 }
 
-// Transform a point from camera space to world space
-// p_world = R^T * p_cam + cam_position
 function camToWorld([px, py, pz], R, pos) {
   return {
     x: R[0]*px + R[3]*py + R[6]*pz + pos.x,
@@ -303,7 +247,6 @@ function poseToWorldPos(pose) {
   };
 }
 
-// Row-major 3x3 rotation matrix from unit quaternion
 function quatToRotMatrix({ qw, qx, qy, qz }) {
   return [
     1-2*(qy*qy+qz*qz),  2*(qx*qy-qw*qz),    2*(qx*qz+qw*qy),

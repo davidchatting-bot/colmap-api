@@ -103,8 +103,8 @@ export async function submitPoseJob(imgElements, options = {}) {
 
 function watchJob(jobId, apiBase, onProgress) {
   return new Promise((resolve, reject) => {
-    const wsBase = apiBase.replace(/^http/, 'ws')
-    const ws = new WebSocket(`${wsBase}/jobs/${jobId}/ws`)
+    const wsOrigin = apiBase ? apiBase.replace(/^http/, 'ws') : `ws://${window.location.host}`
+    const ws = new WebSocket(`${wsOrigin}/jobs/${jobId}/ws`)
 
     ws.addEventListener('message', ({ data }) => {
       const msg = JSON.parse(data)
